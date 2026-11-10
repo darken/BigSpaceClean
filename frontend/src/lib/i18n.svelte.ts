@@ -17,6 +17,7 @@ const messages = {
     required: '必須',
     optional: '任意',
     next: '次へ',
+    back: '戻る',
 
     name: 'お名前',
     namePh: '山田 太郎',
@@ -28,9 +29,29 @@ const messages = {
     phone: '電話番号',
     phonePh: '090-1234-5678',
 
+    propertyName: '物件名',
+    propertyNamePh: '浅草ステイ 301号室',
+    address: '住所',
+    addressPh: '東京都台東区浅草1-2-3',
+    layout: '間取り・部屋数',
+    layoutPh: '例：1K、2LDK、客室10室',
+    access: '入室方法',
+    accessPh: '例：スマートロック、キーボックス（ドア横）',
+    accessHint: '暗証番号はここに入力しないでください。担当者から別途確認します。',
+
+    cleaningTypes: 'ご希望のサービス',
+    cleaningTypesHint: '複数選択できます。',
+    date: '希望日',
+    timeSlot: '希望時間帯',
+    frequency: '頻度',
+    notes: 'ご要望・備考',
+    notesPh: '例：チェックアウト11時、次のチェックイン15時です。',
+
     errRequired: '入力してください',
+    errSelect: '選択してください',
     errEmail: 'メールアドレスの形式が正しくありません',
     errPhone: '電話番号の形式が正しくありません',
+    errDate: '明日以降の日付を選択してください',
     errSummary: '入力内容をご確認ください',
   },
   // English: not added yet (same keys as `ja`)
