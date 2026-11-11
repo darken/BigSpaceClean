@@ -21,6 +21,7 @@ const messages = {
     toConfirm: '入力内容を確認する',
     edit: '修正する',
     submit: 'この内容で依頼する',
+    submitting: '送信中…',
 
     name: 'お名前',
     namePh: '山田 太郎',
@@ -55,6 +56,19 @@ const messages = {
     privacy: '入力いただいた個人情報は、清掃のご依頼への対応のみに使用します。',
     privacyAgree: '個人情報の取り扱いに同意します',
 
+    thanksTitle: 'ご依頼ありがとうございます',
+    thanksLead: 'ご依頼を受け付けました。担当者より1営業日以内にご連絡いたします。',
+    requestId: '受付番号',
+    copy: 'コピー',
+    copied: 'コピーしました',
+    thanksEmail: '{email} に確認メールをお送りしました。',
+    thanksNext: '今後の流れ',
+    thanksStep1: '担当者が内容と日程を確認します',
+    thanksStep2: 'お見積り・日程確定のご連絡',
+    thanksStep3: '当日、清掃スタッフが伺います',
+    newRequest: '別の依頼をする',
+    demoMode: 'デモモード：データは送信されていません',
+
     errRequired: '入力してください',
     errSelect: '選択してください',
     errEmail: 'メールアドレスの形式が正しくありません',
@@ -62,6 +76,7 @@ const messages = {
     errDate: '明日以降の日付を選択してください',
     errSummary: '入力内容をご確認ください',
     errAgree: '同意が必要です',
+    errSubmit: '送信できませんでした。通信環境をご確認のうえ、もう一度お試しください。',
   },
   // English: not added yet (same keys as `ja`)
   en: {
