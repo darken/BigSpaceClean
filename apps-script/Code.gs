@@ -94,18 +94,31 @@ function doPost(e) {
     return json({ ok: false, error: 'Server busy' });
   }
 
+  let requestId;
   try {
     const sheet = getSheet();
-    const requestId = nextRequestId(sheet);
+    requestId = nextRequestId(sheet);
     sheet.appendRow(toRow(requestId, result.clean));
     SpreadsheetApp.flush();
-    return json({ ok: true, requestId: requestId });
   } catch (err) {
     console.error(err);
     return json({ ok: false, error: 'Server error' });
   } finally {
     lock.releaseLock();
   }
+
+  try {
+    sendClientEmail(requestId, result.clean);
+  } catch (err) {
+    console.error('Client email failed', err);
+  }
+  try {
+    sendCompanyEmail(requestId, result.clean);
+  } catch (err) {
+    console.error('Company email failed', err);
+  }
+
+  return json({ ok: true, requestId: requestId });
 }
 
 /* ------------------------------------------------------------------ */
@@ -219,6 +232,73 @@ function isOption(group, code) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Emails                                                             */
+/* ------------------------------------------------------------------ */
+
+// Confirmation to the client.
+function sendClientEmail(requestId, d) {
+  const body =
+    d.name + ' 様\n\n' +
+    'このたびは清掃のご依頼をいただき、誠にありがとうございます。\n' +
+    '以下の内容で受け付けました。担当者より1営業日以内にご連絡いたします。\n\n' +
+    '受付番号：' + requestId + '\n\n' +
+    summary(d) + '\n\n' +
+    '※このメールは送信専用です。お心当たりのない場合は破棄してください。\n\n' +
+    'BigSpace Clean（株式会社ビッグスペース）';
+  MailApp.sendEmail({
+    to: d.email,
+    subject: '【BigSpace Clean】清掃のご依頼を受け付けました（' + requestId + '）',
+    body: body,
+    name: 'BigSpace Clean',
+  });
+}
+
+// Notification to the company.
+function sendCompanyEmail(requestId, d) {
+  // Script Property NOTIFY_EMAIL or the script owner email.
+  const to = PropertiesService.getScriptProperties().getProperty('NOTIFY_EMAIL')
+    || Session.getEffectiveUser().getEmail();
+
+  const body =
+    '新しい清掃依頼が届きました。\n\n' +
+    '受付番号：' + requestId + '\n\n' +
+    summary(d) + '\n\n' +
+    'スプレッドシート：\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl();
+
+  const subject = ('【新規依頼】' + requestId + ' ' + d.propertyName + '（' + d.date.replace(/-/g, '/') + '）')
+    .replace(/\s+/g, ' '); // Removes line breaks
+  MailApp.sendEmail({
+    to: to,
+    subject: subject,
+    body: body,
+    replyTo: d.email, // Reply goes to the client
+    name: 'BigSpace Clean フォーム',
+  });
+}
+
+// Request to text.
+function summary(d) {
+  const lines = [
+    ['お名前', d.name],
+    ['会社名・屋号', d.company],
+    ['メール', d.email],
+    ['電話番号', d.phone],
+    ['物件名', d.propertyName],
+    ['住所', d.address],
+    ['間取り・部屋数', d.layout],
+    ['入室方法', d.accessMethod],
+    ['ご希望のサービス', d.cleaningTypes.map(function (v) { return label('cleaningTypes', v); }).join('、')],
+    ['希望日', d.date.replace(/-/g, '/')],
+    ['希望時間帯', label('timeSlot', d.timeSlot)],
+    ['頻度', label('frequency', d.frequency)],
+    ['ご要望・備考', d.notes],
+  ];
+
+  // "・label：value"
+  return lines.map(function (l) { return '・' + l[0] + '：' + (l[1] || '—'); }).join('\n');
+}
+
+/* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -301,7 +381,8 @@ function testDoPost() {
   const inThreeDays = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
   const res = doPost({ postData: { contents: JSON.stringify({
     name: 'テスト 太郎', company: 'テスト株式会社',
-    email: 'test@example.com', phone: '090-1234-5678',
+    email: Session.getEffectiveUser().getEmail(), // Sends to script owner
+    phone: '090-1234-5678',
     propertyName: '浅草テスト 101', address: '東京都台東区浅草1-1-1',
     layout: '1LDK', accessMethod: 'キーボックス（ドア横）',
     cleaningTypes: ['turnover', 'linen'],
