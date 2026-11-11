@@ -13,5 +13,6 @@ Client's phone ──► Svelte form (Vercel) ──POST JSON──► Apps Scri
 ```bash
 cd frontend
 npm install
+cp .env.example .env.local   # then paste the 'App Script' deployment URL into VITE_GAS_ENDPOINT
 npm run dev
 ```
