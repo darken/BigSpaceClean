@@ -40,6 +40,17 @@ const OPTIONS = {
   },
 };
 
+// Same rules as the form (frontend/src/lib/form.svelte.ts).
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^\+?[\d\s\-()]+$/;
+
+// Prevents saving rows with huge values.
+const MAX_LEN = {
+  name: 100, company: 100, email: 254, phone: 30,
+  propertyName: 200, address: 300, layout: 100, accessMethod: 200,
+  notes: 2000,
+};
+
 /* ------------------------------------------------------------------ */
 /* HTTP Method handlers                                               */
 /* ------------------------------------------------------------------ */
@@ -69,6 +80,12 @@ function doPost(e) {
     return json({ ok: true, requestId });
   }
 
+  // Checks everything again on the server.
+  const result = validate(data);
+  if (result.errors.length > 0) {
+    return json({ ok: false, error: 'Invalid fields', fields: result.errors });
+  }
+
   // Guarantees unique IDs and one write at a time.
   const lock = LockService.getScriptLock();
   try {
@@ -80,7 +97,7 @@ function doPost(e) {
   try {
     const sheet = getSheet();
     const requestId = nextRequestId(sheet);
-    sheet.appendRow(toRow(requestId, data));
+    sheet.appendRow(toRow(requestId, result.clean));
     SpreadsheetApp.flush();
     return json({ ok: true, requestId: requestId });
   } catch (err) {
@@ -92,7 +109,7 @@ function doPost(e) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Setup (run once from the editor)                                    */
+/* Setup (run once from the editor)                                   */
 /* ------------------------------------------------------------------ */
 
 function setup() {
@@ -158,7 +175,51 @@ function setup() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Helpers                                                             */
+/* Validation                                                         */
+/* ------------------------------------------------------------------ */
+
+// Returns the cleaned data and the names of the fields with errors.
+function validate(d) {
+  // Text fields: trimmed and cut to their max length
+  const clean = {};
+  Object.keys(MAX_LEN).forEach(function (key) {
+    clean[key] = safeTrim(d[key]).slice(0, MAX_LEN[key]);
+  });
+  clean.date = safeTrim(d.date);
+  clean.timeSlot = safeTrim(d.timeSlot);
+  clean.frequency = safeTrim(d.frequency);
+
+  // Filters duplicates and unknown options
+  const types = Array.isArray(d.cleaningTypes) ? d.cleaningTypes.map(String) : [];
+  clean.cleaningTypes = types.filter(function (v, i) {
+    return isOption('cleaningTypes', v) && types.indexOf(v) === i;
+  });
+
+  const errors = [];
+  if (!clean.name) errors.push('name');
+  if (!EMAIL_RE.test(clean.email)) errors.push('email');
+
+  const digits = clean.phone.replace(/\D/g, '');
+  if (!PHONE_RE.test(clean.phone) || digits.length < 10 || digits.length > 15) errors.push('phone');
+  if (!clean.propertyName) errors.push('propertyName');
+  if (!clean.address) errors.push('address');
+  if (clean.cleaningTypes.length === 0) errors.push('cleaningTypes');
+
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(clean.date) || clean.date <= today) errors.push('date');
+  if (!isOption('timeSlot', clean.timeSlot)) errors.push('timeSlot');
+  if (!isOption('frequency', clean.frequency)) errors.push('frequency');
+
+  return { errors: errors, clean: clean };
+}
+
+// True if the code is in OPTIONS. hasOwnProperty skips built-in names like "toString".
+function isOption(group, code) {
+  return Object.prototype.hasOwnProperty.call(OPTIONS[group], code);
+}
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
 function getSheet() {
@@ -184,25 +245,24 @@ function nextRequestId(sheet) {
 
 // One sheet row, in the same order as SHEET_HEADERS.
 function toRow(requestId, d) {
-  const cleaningTypes = Array.isArray(d.cleaningTypes) ? d.cleaningTypes : [];
   return [
     new Date(),
     requestId,
     '未対応',
     '', // 担当者: filled in by staff
-    preventInjection(safeTrim(d.name)),
-    preventInjection(safeTrim(d.company)),
-    preventInjection(safeTrim(d.email)),
-    preventInjection(safeTrim(d.phone)), // preventInjection needed for "+81..."
-    preventInjection(safeTrim(d.propertyName)),
-    preventInjection(safeTrim(d.address)),
-    preventInjection(safeTrim(d.layout)),
-    preventInjection(safeTrim(d.accessMethod)),
-    cleaningTypes.map(function (v) { return label('cleaningTypes', v); }).join('、'),
-    toDate(safeTrim(d.date)),
+    preventInjection(d.name),
+    preventInjection(d.company),
+    preventInjection(d.email),
+    preventInjection(d.phone), // preventInjection needed for "+81..."
+    preventInjection(d.propertyName),
+    preventInjection(d.address),
+    preventInjection(d.layout),
+    preventInjection(d.accessMethod),
+    d.cleaningTypes.map(function (v) { return label('cleaningTypes', v); }).join('、'),
+    toDate(d.date),
     label('timeSlot', d.timeSlot),
     label('frequency', d.frequency),
-    preventInjection(safeTrim(d.notes)),
+    preventInjection(d.notes),
   ];
 }
 
@@ -232,6 +292,10 @@ function json(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+/* ------------------------------------------------------------------ */
+/* Tests                                                              */
+/* ------------------------------------------------------------------ */
+
 // Run from the editor to test saving without the form.
 function testDoPost() {
   const inThreeDays = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
@@ -244,6 +308,17 @@ function testDoPost() {
     date: Utilities.formatDate(inThreeDays, TZ, 'yyyy-MM-dd'),
     timeSlot: 'afternoon', frequency: 'once',
     notes: 'テスト送信です', website: '',
+  }) } });
+  console.log(res.getContent());
+}
+
+// Run from the editor: should log ok: false with the wrong fields, and save nothing.
+function testInvalidPost() {
+  const res = doPost({ postData: { contents: JSON.stringify({
+    name: '', email: 'not-an-email', phone: '123',
+    propertyName: '浅草テスト 101', address: '東京都台東区浅草1-1-1',
+    cleaningTypes: ['unknown'], date: '2020-01-01',
+    timeSlot: 'afternoon', frequency: 'once',
   }) } });
   console.log(res.getContent());
 }
