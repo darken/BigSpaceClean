@@ -193,7 +193,7 @@ function toRow(requestId, d) {
     preventInjection(safeTrim(d.name)),
     preventInjection(safeTrim(d.company)),
     preventInjection(safeTrim(d.email)),
-    safeTrim(d.phone), // plain-text
+    preventInjection(safeTrim(d.phone)), // preventInjection needed for "+81..."
     preventInjection(safeTrim(d.propertyName)),
     preventInjection(safeTrim(d.address)),
     preventInjection(safeTrim(d.layout)),
