@@ -5,18 +5,22 @@
   import StepContact from './components/steps/StepContact.svelte'
   import StepProperty from './components/steps/StepProperty.svelte'
   import StepCleaning from './components/steps/StepCleaning.svelte'
+  import Confirm from './components/steps/Confirm.svelte'
   import { validateStep, type Errors } from './lib/form.svelte'
   import { t, type MessageKey } from './lib/i18n.svelte'
 
-  // 0 = contact, 1 = property, 2 = cleaning
+  // 0 = contact, 1 = property, 2 = cleaning, 3 = review
   let step = $state(0)
   // Errors are only shown after the user tries to go to the next step
   let showErrors = $state(false)
+  // Privacy consent on the review screen
+  let agreed = $state(false)
+  let agreeError = $state(false)
 
-  const stepTitles: MessageKey[] = ['stepContact', 'stepProperty', 'stepCleaning']
+  const stepTitles: MessageKey[] = ['stepContact', 'stepProperty', 'stepCleaning', 'confirmTitle']
 
   // Re-validates live, so an error disappears as soon as the user fixes it
-  const errors: Errors = $derived(showErrors ? validateStep(step) : {})
+  const errors: Errors = $derived(showErrors && step <= 2 ? validateStep(step) : {})
 
   async function goTo(n: number) {
     step = n
@@ -35,9 +39,31 @@
       first?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
-    if (step < stepTitles.length - 1) goTo(step + 1)
-    // TODO: go to the confirm step
+    goTo(step + 1)
   }
+
+  async function submit() {
+    if (!agreed) {
+      agreeError = true
+      await tick()
+      document.getElementById('agree')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    // Safety net: validate every step again before sending
+    for (const s of [0, 1, 2]) {
+      if (Object.keys(validateStep(s)).length > 0) {
+        await goTo(s)
+        showErrors = true
+        return
+      }
+    }
+    // TODO: send the request
+  }
+
+  // Hide the consent error as soon as the box is checked
+  $effect(() => {
+    if (agreed) agreeError = false
+  })
 
   $effect(() => {
     document.title = `${t('title')} | ${t('brand')}`
@@ -65,13 +91,15 @@
       </p>
     {/if}
 
-    <form novalidate onsubmit={(e) => { e.preventDefault(); next() }}>
+    <form novalidate onsubmit={(e) => { e.preventDefault(); if (step < 3) next(); else submit() }}>
       {#if step === 0}
         <StepContact {errors} />
       {:else if step === 1}
         <StepProperty {errors} />
       {:else if step === 2}
         <StepCleaning {errors} />
+      {:else}
+        <Confirm bind:agreed {agreeError} onedit={goTo} />
       {/if}
 
       <!-- Bottom action bar: fixed on phones so the main button is always reachable -->
@@ -85,7 +113,13 @@
           {/if}
           <button type="submit"
             class="flex h-13 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 font-bold text-white shadow-sm transition hover:bg-brand-700 active:scale-[0.99]">
-            {t('next')}
+            {#if step < 2}
+              {t('next')}
+            {:else if step === 2}
+              {t('toConfirm')}
+            {:else}
+              {t('submit')}
+            {/if}
           </button>
         </div>
       </div>

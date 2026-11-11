@@ -18,6 +18,9 @@ const messages = {
     optional: '任意',
     next: '次へ',
     back: '戻る',
+    toConfirm: '入力内容を確認する',
+    edit: '修正する',
+    submit: 'この内容で依頼する',
 
     name: 'お名前',
     namePh: '山田 太郎',
@@ -47,12 +50,18 @@ const messages = {
     notes: 'ご要望・備考',
     notesPh: '例：チェックアウト11時、次のチェックイン15時です。',
 
+    confirmTitle: '入力内容のご確認',
+    confirmLead: '以下の内容でよろしければ「この内容で依頼する」を押してください。',
+    privacy: '入力いただいた個人情報は、清掃のご依頼への対応のみに使用します。',
+    privacyAgree: '個人情報の取り扱いに同意します',
+
     errRequired: '入力してください',
     errSelect: '選択してください',
     errEmail: 'メールアドレスの形式が正しくありません',
     errPhone: '電話番号の形式が正しくありません',
     errDate: '明日以降の日付を選択してください',
     errSummary: '入力内容をご確認ください',
+    errAgree: '同意が必要です',
   },
   // English: not added yet (same keys as `ja`)
   en: {

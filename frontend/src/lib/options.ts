@@ -24,3 +24,8 @@ export const frequencies: Option[] = [
   { value: 'weekly', label: '毎週' },
   { value: 'monthly', label: '毎月' },
 ]
+
+/** Find the label of a code (used on the review screen). */
+export function labelOf(options: Option[], value: string): string {
+  return options.find((o) => o.value === value)?.label ?? value
+}
